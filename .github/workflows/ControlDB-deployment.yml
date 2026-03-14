@@ -24,12 +24,11 @@ jobs:
       - name: Sanity check OIDC IDs (lengths only)
         shell: pwsh
         run: |
-          $lengths = @{
-            AZURE_CLIENT_ID      = "${{ secrets.AZURE_CLIENT_ID }}".Length
-            AZURE_TENANT_ID      = "${{ secrets.AZURE_TENANT_ID }}".Length
-            AZURE_SUBSCRIPTION_ID= "${{ secrets.AZURE_SUBSCRIPTION_ID }}".Length
-          }
-          $lengths.GetEnumerator() | ForEach-Object { Write-Host "$($_.Key): $($_.Value)" }
+          
+          Write-Host "CLIENT_ID length:" "${{ secrets.AZURE_CLIENT_ID }}".Length
+          Write-Host "TENANT_ID length:" "${{ secrets.AZURE_TENANT_ID }}".Length
+          Write-Host "SUB_ID length:" "${{ secrets.AZURE_SUBSCRIPTION_ID }}".Length
+
 
       - name: Azure Login (OIDC)
         uses: azure/login@v2
