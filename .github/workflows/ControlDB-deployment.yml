@@ -3,6 +3,7 @@ name: ControlDB Deployment
 on:
   workflow_dispatch:
 
+# OIDC requires this
 permissions:
   id-token: write
   contents: read
@@ -10,16 +11,36 @@ permissions:
 jobs:
   release:
     runs-on: windows-latest
+    # If you target an Environment with protected secrets, uncomment below and set your environment name:
+    # environment: prod
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Display checkout files and folders
+        run: Get-ChildItem $env:GITHUB_WORKSPACE -Recurse
+
+      # 🔎 Sanity check: ensure OIDC IDs are present (we only print lengths)
+      - name: Sanity check OIDC IDs (lengths only)
+        shell: pwsh
+        run: |
+          $lengths = @{
+            AZURE_CLIENT_ID      = "${{ secrets.AZURE_CLIENT_ID }}".Length
+            AZURE_TENANT_ID      = "${{ secrets.AZURE_TENANT_ID }}".Length
+            AZURE_SUBSCRIPTION_ID= "${{ secrets.AZURE_SUBSCRIPTION_ID }}".Length
+          }
+          $lengths.GetEnumerator() | ForEach-Object { Write-Host "$($_.Key): $($_.Value)" }
+
       - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:  ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          # 👇 OIDC uses these three — do NOT provide 'creds'
+          client-id:        ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Who am I?
+        run: az account show
 
       - name: Build and Deploy SQL Database
         uses: Azure/sql-action@v2
