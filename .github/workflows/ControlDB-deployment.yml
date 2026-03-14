@@ -8,6 +8,18 @@ jobs:
           uses: actions/checkout@v3
         - name: Display checkout files and folders
           run: Get-ChildItem ${{github.workspace}} -Recurse
+                  
+        - name: Sanity check secrets (length only)
+          shell: pwsh
+          run: |
+            $lengths = @{
+              CLIENT_ID = "${{ secrets.CLIENT_ID }}".Length
+              CLIENT_SECRET = "${{ secrets.CLIENT_SECRET }}".Length
+              SUBSCRIPTION_ID = "${{ secrets.SUBSCRIPTION_ID }}".Length
+              TENANT_ID = "${{ secrets.TENANT_ID }}".Length
+            }
+            $lengths.GetEnumerator() | ForEach-Object { Write-Host "$($_.Key): $($_.Value)" }
+
         - name: Azure Login
           uses: Azure/login@v1
           with:
