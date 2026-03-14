@@ -1,61 +1,44 @@
 name: ControlDB Deployment
-
-on:
-  workflow_dispatch:
-
-# OIDC requires this
-permissions:
-  id-token: write
-  contents: read
-
+on: workflow_dispatch 
 jobs:
-  release:
-    runs-on: windows-latest
-    # If you target an Environment with protected secrets, uncomment below and set your environment name:
-    # environment: prod
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    release:      
+      runs-on: windows-latest
+      steps:
+        - name: Checkout code 
+          uses: actions/checkout@v3
+        - name: Display checkout files and folders
+          run: Get-ChildItem ${{github.workspace}} -Recurse
+                  
+        - name: Sanity check secrets (length only)
+          shell: pwsh
+          run: |
+            $lengths = @{
+              CLIENT_ID = "${{ secrets.CLIENT_ID }}".Length
+              CLIENT_SECRET = "${{ secrets.CLIENT_SECRET }}".Length
+              SUBSCRIPTION_ID = "${{ secrets.SUBSCRIPTION_ID }}".Length
+              TENANT_ID = "${{ secrets.TENANT_ID }}".Length
+            }
+            $lengths.GetEnumerator() | ForEach-Object { Write-Host "$($_.Key): $($_.Value)" }
 
-      - name: Display checkout files and folders
-        run: Get-ChildItem $env:GITHUB_WORKSPACE -Recurse
-
-      # 🔎 Sanity check: ensure OIDC IDs are present (we only print lengths)
-      - name: Sanity check OIDC IDs (lengths only)
-        shell: pwsh
-        run: |
-          
-          Write-Host "CLIENT_ID length:" "${{ secrets.AZURE_CLIENT_ID }}".Length
-          Write-Host "TENANT_ID length:" "${{ secrets.AZURE_TENANT_ID }}".Length
-          Write-Host "SUB_ID length:" "${{ secrets.AZURE_SUBSCRIPTION_ID }}".Length
-
-
-      - name: Azure Login (OIDC)
-        uses: azure/login@v2
-        with:
-          # 👇 OIDC uses these three — do NOT provide 'creds'
-          client-id:        ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id:        ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id:  ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Who am I?
-        run: az account show
-
-      - name: Build and Deploy SQL Database
-        uses: Azure/sql-action@v2
-        with:
-          connection-string: ${{ secrets.CONTROLDB_CONNECTIONSTRING }}
-          path: $env:GITHUB_WORKSPACE\elt-framework\ControlDB\ELT\Database.sqlproj
-          action: Publish
-          arguments: >
-            /p:DropPermissionsNotInSource=false
-            /p:BlockOnPossibleDataLoss=false
-            /p:DropRoleMembersNotInSource=false
-            /p:DropObjectsNotInSource=false
-            /p:IgnoreColumnOrder=true
-            /p:IgnorePermissions=true
-            /p:AllowIncompatiblePlatform=true
-            /p:ExcludeObjectTypes=Logins;Users
-
-      - name: Azure Logout
-        run: az logout
+        - name: Azure Login
+          uses: Azure/login@v1
+          with:
+           creds: '{"clientId":"${{ secrets.CLIENT_ID }}","clientSecret":"${{ secrets.CLIENT_SECRET }}","subscriptionId":"${{ secrets.SUBSCRIPTION_ID }}","tenantId":"${{ secrets.TENANT_ID }}"}'
+        - name: Build and Deploy SQL Database
+          uses: Azure/sql-action@v2
+          with:
+            connection-string: ${{secrets.CONTROLDB_CONNECTIONSTRING}}
+            path: ${{github.workspace}}\elt-framework\ControlDB\ELT\Database.sqlproj
+            action: 'Publish'
+            arguments: >
+              /p:DropPermissionsNotInSource=false
+              /p:BlockOnPossibleDataLoss=false
+              /p:DropRoleMembersNotInSource=false
+              /p:DropObjectsNotInSource=false
+              /p:IgnoreColumnOrder=true
+              /p:IgnorePermissions=true
+              /p:AllowIncompatiblePlatform=true
+              /p:ExcludeObjectTypes=Logins;Users
+        - name: Azure Logout
+          run: |
+            az logout
